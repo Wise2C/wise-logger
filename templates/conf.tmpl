@@ -1,0 +1,68 @@
+{{ range $k, $v := . }}{{ range $v.LogType }}{{ if eq . "UM" }}input {
+    file {
+		path => ["/logs/{{ $v.MountSource }}/*/common-all*.log"]
+		codec => plain { charset => "GBK" }
+		discover_interval => 120
+		stat_interval => 2
+		sincedb_path => "/logs/{{ $v.MountSource }}/sincedb1"
+		add_field => { "stack" => "{{ $v.Stack }}" }
+		add_field => { "service" => "{{ $v.Service }}" }
+		add_field => { "index" => "{{ $v.Index}}" }
+		add_field => { "HOST" => "{{ $v.Host }}" }
+    }
+    file {
+		path => "/logs/{{ $v.MountSource }}/*/*.acc"
+		discover_interval => 120
+		stat_interval => 1
+		sincedb_path => "/logs/{{ $v.MountSource }}/sincedb2"
+		add_field => { "stack" => "{{ $v.Stack }}" }
+		add_field => { "service" => "{{ $v.Service }}" }
+		add_field => { "index" => "{{ $v.Index}}" }
+		add_field => { "HOST" => "{{ $v.Host }}" }
+    }
+}{{ end }}{{ end }}{{ end }}
+
+filter {
+    if [path] =~ "common-all" {
+        multiline {
+        pattern => "^%{TIMESTAMP_ISO8601}"
+        negate => "true"
+        what => "previous"
+        }
+    }
+    mutate {
+        remove_field => ["@version", "@timestamp", "tags"]
+        remove_tag => ["multiline"]
+        add_field => { "ip" => "%{HOST}" }
+    }
+    dns {
+        action => "replace"
+        resolve => ["ip"]
+    }
+}
+
+output {
+    if [path] =~ "\.acc" {
+        kafka {
+            bootstrap_servers =>"192.168.21.12:9092,192.168.21.13:9092,192.168.21.14:9092"
+            topic_id =>"acclog"
+            message_key => "%{HOST}"
+            batch_size => 200
+            client_id => [HOST]
+        }
+ 	} else if [path] =~ "access" {
+        kafka {
+            bootstrap_servers =>"192.168.21.12:9092,192.168.21.13:9092,192.168.21.14:9092"
+            topic_id =>"acclog"
+            message_key => "%{HOST}"
+            batch_size => 200
+        }
+  	} else if [path] =~ "common-all" {
+        kafka {
+            bootstrap_servers =>"192.168.21.12:9092,192.168.21.13:9092,192.168.21.14:9092"
+            compression_type => "snappy"
+            topic_id => "applog"
+            message_key => "%{HOST}"
+        }
+    }
+}

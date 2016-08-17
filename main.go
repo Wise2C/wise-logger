@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
+	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
-	"os"
 	"runtime"
 
 	"github.com/golang/glog"
@@ -13,7 +13,11 @@ import (
 var HOST = ""
 
 func init() {
-	HOST = os.Getenv("HOST")
+	b, _ := ioutil.ReadFile("/etc/hostname")
+	if len(b) > 0 {
+		b = b[0 : len(b)-1]
+	}
+	HOST = string(b)
 }
 
 func main() {
@@ -24,6 +28,7 @@ func main() {
 	go GatherLogVolumeTask(c)
 
 	go WatchTmpl(c)
+	//	go WatchEtcd(c)
 
 	glog.Info(http.ListenAndServe("0.0.0.0:6060", nil))
 }

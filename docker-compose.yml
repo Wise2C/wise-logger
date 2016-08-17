@@ -1,0 +1,14 @@
+logstash:
+    image: ymian/logstash
+    labels:
+      io.rancher.sidekicks: wiselog
+    net: "container:wiselog"
+    volumes_from:
+      - wiselog
+    volumes:
+      - /var/lib/docker/volumes:/logs
+wiselog:
+    image: ymian/wiselog
+    volumes:
+      - /etc/hostname:/etc/hostname
+      - /var/run/docker.sock:/var/run/docker.sock
