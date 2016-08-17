@@ -99,9 +99,10 @@ func WatchTmpl(c chan<- ContainerChangeInfo) {
 				} else {
 					eventIsModify = false
 				}
+				glog.Infof("watch file %s is modified", ev.Name)
 			}
 		case err := <-watcher.Error:
-			glog.Info("error:", err)
+			glog.Errorf("error: %s", err.Error())
 		}
 	}
 }
@@ -110,7 +111,6 @@ func CreateConfig(c <-chan ContainerChangeInfo) {
 	defer Recover()
 
 	cl := make(map[string]*ContainerInfo)
-	createConfig(cl)
 
 	for {
 		select {
@@ -131,7 +131,7 @@ func CreateConfig(c <-chan ContainerChangeInfo) {
 }
 
 func createConfig(cl map[string]*ContainerInfo) {
-	filename := "/etc/logstash/conf.d/logstash.conf"
+	filename := "logstash.conf"
 	file, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
 	if err != nil {
 		glog.Errorf("create file %s error: %s", filename, err.Error())

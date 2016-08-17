@@ -41,18 +41,36 @@ func WatchLogVolume(c chan<- ContainerChangeInfo) {
 	defaultHeaders := map[string]string{"User-Agent": "wise-logger-1.0"}
 	cli, err := client.NewClient("unix:///var/run/docker.sock", "v1.12", nil, defaultHeaders)
 	if err != nil {
-		panic(err)
+		glog.Errorf("create docker client error: %s", err.Error())
+		return
 	}
 
-	options := types.ContainerListOptions{All: true}
+	options := types.ContainerListOptions{
+		Filter: filters.NewArgs(),
+	}
+	options.Filter.Add("label", "logtype")
 	containers, err := cli.ContainerList(context.Background(), options)
 	if err != nil {
-		panic(err)
+		glog.Errorf("get container error: %s", err.Error())
+		return
 	}
 
+	cci := make(map[string]*ContainerInfo)
 	for _, c := range containers {
-		fmt.Println(c.ID)
+		info, err := getContainerInfo(cli, c.ID)
+		if err != nil {
+			glog.Error(err.Error())
+		}
+		cci[c.ID] = info
+		glog.Infof("gather log container %s: %s", c.ID, c.Names)
 	}
+
+	c <- ContainerChangeInfo{
+		ChangeType: ADD,
+		Info:       cci,
+	}
+
+	glog.Error(watchLogVolume(cli, c))
 }
 
 func watchLogVolume(cli *client.Client, c chan<- ContainerChangeInfo) error {
@@ -83,7 +101,7 @@ func watchLogVolume(cli *client.Client, c chan<- ContainerChangeInfo) error {
 		}
 		c <- ContainerChangeInfo{
 			Info:       map[string]*ContainerInfo{event.ID: info},
-			ChangeType: NONE,
+			ChangeType: ADD,
 		}
 	}
 

@@ -25,7 +25,8 @@ func main() {
 
 	c := make(chan ContainerChangeInfo, 1)
 	go CreateConfig(c)
-	go GatherLogVolumeTask(c)
+	go WatchLogVolume(c)
+	//	go GatherLogVolumeTask(c)
 
 	go WatchTmpl(c)
 	//	go WatchEtcd(c)
