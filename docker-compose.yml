@@ -1,14 +1,15 @@
-logstash:
-    image: ymian/logstash
-    labels:
-      io.rancher.sidekicks: wiselog
-    net: "container:wiselog"
-    volumes_from:
-      - wiselog
-    volumes:
-      - /var/lib/docker/volumes:/logs
-wiselog:
-    image: ymian/wiselog
+wise-logger:
+    image: ymian/wise-logger
     volumes:
       - /etc/hostname:/etc/hostname
       - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      io.rancher.sidekicks: "logstash"
+logstash:
+    image: logstash:2.3
+    net: "container:wise-logger"
+    volumes_from:
+      - wise-logger
+    volumes:
+      - /var/lib/docker/volumes:/logs
+    command: [bash, -c, "logstash -f /tmp/conf.d --auto-reload"]

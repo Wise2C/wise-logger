@@ -1,17 +1,12 @@
-FROM logstash
+FROM centos:7
 
-MAINTAINER mian <gopher.mian@outlook.com>
+MAINTAINER mian <huaxiang@wise2c.com>
 
-WORKDIR /var/wiseLog
+WORKDIR /var/wise2c
 
-ADD boot.sh .
-ADD wiseLog .
-ADD templates/ ./templates
-ADD entrypoint.sh .
+ADD wise-logger .
+ADD template/ ./template
 
-ADD docker-1.12.0.tgz /root
-RUN mv /root/docker/docker /bin && rm /root/docker -rf
+VOLUME ["/tmp/conf.d"]
 
-VOLUME ["/etc/logstash/conf.d"]
-
-ENTRYPOINT ["./boot.sh"]
+ENTRYPOINT ["./wise-logger", "-alsologtostderr=true"]

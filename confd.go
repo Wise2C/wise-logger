@@ -79,13 +79,12 @@ func WatchTmpl(c chan<- ContainerChangeInfo) {
 		glog.Fatalf("initialize fsnotify error: %s", err.Error())
 	}
 
-	err = watcher.Watch("templates/conf.tmpl")
+	err = watcher.Watch("template/conf.tmpl")
 	if err != nil {
-		glog.Fatalf("watch file %s error: %s", "templates/conf.tmpl", err.Error())
+		glog.Fatalf("watch template error: %s", err.Error())
 	}
 
 	eventIsModify := true
-
 	for {
 		select {
 		case ev := <-watcher.Event:
@@ -95,11 +94,9 @@ func WatchTmpl(c chan<- ContainerChangeInfo) {
 						Info:       nil,
 						ChangeType: NONE,
 					}
-					eventIsModify = true
-				} else {
-					eventIsModify = false
 				}
-				glog.Infof("watch file %s is modified", ev.Name)
+				eventIsModify = !eventIsModify
+				glog.Infof("template is modified")
 			}
 		case err := <-watcher.Error:
 			glog.Errorf("error: %s", err.Error())
@@ -131,16 +128,15 @@ func CreateConfig(c <-chan ContainerChangeInfo) {
 }
 
 func createConfig(cl map[string]*ContainerInfo) {
-	filename := "logstash.conf"
-	file, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
+	filename := "/tmp/conf.d/logstash.conf"
+	file, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0755)
 	if err != nil {
-		glog.Errorf("create file %s error: %s", filename, err.Error())
+		glog.Errorf("create config file error: %s", err.Error())
 		return
 	}
 	defer file.Close()
 
-	t := template.Must(template.ParseFiles("templates/conf.tmpl"))
+	t := template.Must(template.ParseFiles("template/conf.tmpl"))
 	t.Execute(file, cl)
 	glog.Info("create logstash profile")
-
 }

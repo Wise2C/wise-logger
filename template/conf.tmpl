@@ -1,0 +1,27 @@
+{{ range $k, $v := . }}{{ range $v.LogType }}{{ if eq . "UM" }}input {
+    file {
+		path => ["/logs/{{ $v.MountSource }}/*/common-all*.log"]
+		codec => plain { charset => "GBK" }
+		discover_interval => 120
+		stat_interval => 2
+		sincedb_path => "/logs/{{ $v.MountSource }}/sincedb1"
+		add_field => { "stack" => "{{ $v.Stack }}" }
+		add_field => { "service" => "{{ $v.Service }}" }
+		add_field => { "index" => "{{ $v.Index}}" }
+		add_field => { "HOST" => "{{ $v.Host }}" }
+    }
+    file {
+		path => "/logs/{{ $v.MountSource }}/*/*.acc"
+		discover_interval => 120
+		stat_interval => 1
+		sincedb_path => "/logs/{{ $v.MountSource }}/sincedb2"
+		add_field => { "stack" => "{{ $v.Stack }}" }
+		add_field => { "service" => "{{ $v.Service }}" }
+		add_field => { "index" => "{{ $v.Index}}" }
+		add_field => { "HOST" => "{{ $v.Host }}" }
+    }
+}{{ end }}{{ end }}{{ end }}
+
+output {
+	stdout { }
+}
