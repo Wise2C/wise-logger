@@ -10,7 +10,7 @@
 
 * `rancher`平台上启动
 
-    [rancher-compose](https://github.com/rancher/rancher-compose/releases/tag/v0.9.2) `--url http://server_ip:8080 --access-key <username_of_environment_api_key> --secret-key <password_of_environment_api_key> up` -d
+    [rancher-compose](https://github.com/rancher/rancher-compose/releases/tag/v0.9.2) `--url http://server_ip:8080 --access-key <username_of_environment_api_key> --secret-key <password_of_environment_api_key> up -d`
 
 ## 特性
 
@@ -29,4 +29,5 @@
     * 做为被`wise-logger`识别的标识
     * 依据标签内容生成不同的日志采集配置
     * 多个标签内容用分号隔开，如：`logtype=xxx;yyy;zzz`
+* 每个日志容器只能有一个`local driver volume`
 * 模板文件中要涵盖每一种可能的`logtype`
