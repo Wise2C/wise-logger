@@ -137,5 +137,4 @@ func getContainerInfo(cli *client.Client, containerID string) (*ContainerInfo, e
 		Index:       index,
 		Host:        HOST,
 	}, nil
-
 }
