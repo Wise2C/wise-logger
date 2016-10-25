@@ -28,7 +28,7 @@ func WatchLogVolume(c chan<- ContainerChangeInfo) {
 	defer Recover()
 
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-client-1.0"}
-	cli, err := client.NewClient("unix:///var/run/docker.sock", "1.24", nil, defaultHeaders)
+	cli, err := client.NewClient("unix:///var/run/docker.sock", DOCKERAPI_VERSION, nil, defaultHeaders)
 	if err != nil {
 		glog.Errorf("create docker client error: %s", err.Error())
 		return

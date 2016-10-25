@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"text/template"
 	"time"
@@ -17,7 +18,15 @@ type ChangeType int
 const (
 	ADD ChangeType = iota
 	RM
+	CHANGE
 	NONE
+)
+
+var (
+	ETCD_POINT        = os.Getenv("ETCD_POINT")
+	DOCKERAPI_VERSION = os.Getenv("DOCKERAPI_VERSION")
+
+	tmpl string
 )
 
 type ContainerChangeInfo struct {
@@ -29,7 +38,7 @@ func WatchEtcd(c chan<- ContainerChangeInfo) {
 	defer Recover()
 
 	cfg := client.Config{
-		Endpoints: []string{"http://10.105.0.59:2379"},
+		Endpoints: []string{ETCD_POINT},
 		Transport: client.DefaultTransport,
 		// set timeout per request to fail fast when the target endpoint is unavailable
 		HeaderTimeoutPerRequest: time.Second,
@@ -41,7 +50,7 @@ func WatchEtcd(c chan<- ContainerChangeInfo) {
 	}
 
 	kapi := client.NewKeysAPI(cl)
-	watch := kapi.Watcher("wiseLogger",
+	watch := kapi.Watcher("wiselogger",
 		&client.WatcherOptions{
 			AfterIndex: 0,
 			Recursive:  false,
@@ -79,7 +88,7 @@ func WatchTmpl(c chan<- ContainerChangeInfo) {
 		glog.Fatalf("initialize fsnotify error: %s", err.Error())
 	}
 
-	err = watcher.Watch("template/conf.tmpl")
+	err = watcher.Watch("templates/conf.tmpl")
 	if err != nil {
 		glog.Fatalf("watch template error: %s", err.Error())
 	}
@@ -107,6 +116,9 @@ func WatchTmpl(c chan<- ContainerChangeInfo) {
 func CreateConfig(c <-chan ContainerChangeInfo) {
 	defer Recover()
 
+	if err := getEtcdConfig(); err != nil {
+		glog.Fatal(err.Error())
+	}
 	cl := make(map[string]*ContainerInfo)
 
 	for {
@@ -120,11 +132,37 @@ func CreateConfig(c <-chan ContainerChangeInfo) {
 				for k, _ := range ci.Info {
 					delete(cl, k)
 				}
+			} else if ci.ChangeType == CHANGE {
+				if err := getEtcdConfig(); err != nil {
+					glog.Fatal(err.Error())
+				}
 			}
-
 			createConfig(cl)
 		}
 	}
+}
+
+func getEtcdConfig() error {
+	cfg := client.Config{
+		Endpoints: []string{ETCD_POINT},
+		Transport: client.DefaultTransport,
+		// set timeout per request to fail fast when the target endpoint is unavailable
+		HeaderTimeoutPerRequest: time.Second,
+	}
+
+	ec, err := client.New(cfg)
+	if err != nil {
+		return fmt.Errorf("create etcd client error: %s", err.Error())
+	}
+
+	kapi := client.NewKeysAPI(ec)
+	resp, err := kapi.Get(context.Background(), "wiselogger", nil)
+	if err != nil {
+		return fmt.Errorf("get config error: %s", err.Error())
+	}
+
+	tmpl = resp.Node.Value
+	return nil
 }
 
 func createConfig(cl map[string]*ContainerInfo) {
@@ -136,7 +174,7 @@ func createConfig(cl map[string]*ContainerInfo) {
 	}
 	defer file.Close()
 
-	t := template.Must(template.ParseFiles("template/conf.tmpl"))
+	t := template.Must(template.New("log").Parse(tmpl))
 	t.Execute(file, cl)
 	glog.Info("create logstash profile")
 }

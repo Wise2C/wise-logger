@@ -35,8 +35,8 @@ func main() {
 
 	go CreateConfig(c)
 	go WatchLogVolume(c)
-	go WatchTmpl(c)
-	//	go WatchEtcd(c)
+	//	go WatchTmpl(c)
+	go WatchEtcd(c)
 
 	glog.Info(http.ListenAndServe("0.0.0.0:6060", nil))
 }
