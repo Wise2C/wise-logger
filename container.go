@@ -35,6 +35,7 @@ func WatchLogVolume(c chan<- ContainerChangeInfo) {
 	}
 
 	options := types.ContainerListOptions{
+		All:    true,
 		Filter: filters.NewArgs(),
 	}
 	options.Filter.Add("label", "logtype")
