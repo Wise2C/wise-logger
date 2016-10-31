@@ -5,7 +5,7 @@ wise-logger:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - "ETCD_POINTS=http://127.0.0.1:4001"
-	  - "DOCKERAPI_VERSION=1.24"
+      - "DOCKERAPI_VERSION=1.24"
     labels:
       io.rancher.sidekicks: "logstash"
 logstash:
