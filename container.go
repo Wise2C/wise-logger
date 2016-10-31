@@ -124,11 +124,12 @@ func getContainerInfo(cli *client.Client, containerID string) (*ContainerInfo, e
 	containerName := info.Config.Labels["io.rancher.container.name"]
 	var stack, service, index string
 	combination := strings.Split(containerName, "_")
-	if len(combination) == 3 {
+	if len(combination) == 4 {
 		stack = combination[0]
 		service = combination[1]
-		index = combination[2]
+		index = combination[3]
 	}
+	fmt.Println(stack, service, index)
 
 	return &ContainerInfo{
 		LogType:     strings.Split(t, ";"),

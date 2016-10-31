@@ -73,7 +73,7 @@ func WatchEtcd(c chan<- ContainerChangeInfo) {
 
 		c <- ContainerChangeInfo{
 			Info:       nil,
-			ChangeType: NONE,
+			ChangeType: CHANGE,
 		}
 
 		glog.Info(res.Node.Value)
@@ -162,6 +162,7 @@ func getEtcdConfig() error {
 	}
 
 	tmpl = resp.Node.Value
+
 	return nil
 }
 
