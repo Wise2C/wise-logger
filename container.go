@@ -17,6 +17,7 @@ import (
 
 type ContainerInfo struct {
 	LogType     []string
+	ID          string
 	MountSource string
 	Stack       string
 	Service     string
@@ -133,6 +134,7 @@ func getContainerInfo(cli *client.Client, containerID string) (*ContainerInfo, e
 
 	return &ContainerInfo{
 		LogType:     strings.Split(t, ";"),
+		ID:          info.ID,
 		MountSource: source,
 		Stack:       stack,
 		Service:     service,

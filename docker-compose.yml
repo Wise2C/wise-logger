@@ -15,5 +15,6 @@ logstash:
       - wise-logger
     volumes:
       - /var/lib/docker/volumes:/logs
+      - /var/lib/docker/containers:/jsonfile
       - /var/log:/var/host/log
     command: [bash, -c, "logstash -f /tmp/conf.d --auto-reload"]

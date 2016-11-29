@@ -7,6 +7,6 @@ WORKDIR /var/wise2c
 ADD wise-logger .
 #ADD template/ ./template
 
-VOLUME ["/tmp/conf.d"]
+# VOLUME ["/tmp/conf.d"]
 
 ENTRYPOINT ["./wise-logger", "-stderrthreshold=INFO"]
