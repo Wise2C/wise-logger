@@ -8,6 +8,8 @@ import (
 
 	"golang.org/x/net/context"
 
+	"io/ioutil"
+
 	"github.com/coreos/etcd/client"
 	"github.com/fsnotify-master"
 	"github.com/golang/glog"
@@ -23,8 +25,11 @@ const (
 )
 
 var (
-	ETCD_POINT        = os.Getenv("ETCD_POINT")
-	DOCKERAPI_VERSION = os.Getenv("DOCKERAPI_VERSION")
+	tmplSource       = os.Getenv("TMPL_SOURCE")
+	etcdPoint        = os.Getenv("ETCD_POINT")
+	dockerAPIVersion = os.Getenv("DOCKERAPI_VERSION")
+
+	kapi = newEtcdClient(etcdPoint)
 
 	tmpl string
 )
@@ -34,22 +39,25 @@ type ContainerChangeInfo struct {
 	ChangeType ChangeType
 }
 
-func WatchEtcd(c chan<- ContainerChangeInfo) {
-	defer Recover()
-
+func newEtcdClient(etcdPoint string) client.KeysAPI {
 	cfg := client.Config{
-		Endpoints: []string{ETCD_POINT},
+		Endpoints: []string{etcdPoint},
 		Transport: client.DefaultTransport,
 		// set timeout per request to fail fast when the target endpoint is unavailable
 		HeaderTimeoutPerRequest: time.Second,
 	}
 
-	cl, err := client.New(cfg)
+	ec, err := client.New(cfg)
 	if err != nil {
-		glog.Error(err)
+		panic(fmt.Sprintf("create etcd client error: %s", err.Error()))
 	}
 
-	kapi := client.NewKeysAPI(cl)
+	return client.NewKeysAPI(ec)
+}
+
+func WatchEtcd(c chan<- ContainerChangeInfo) {
+	defer Recover()
+
 	watch := kapi.Watcher("wiselogger",
 		&client.WatcherOptions{
 			AfterIndex: 0,
@@ -80,7 +88,7 @@ func WatchEtcd(c chan<- ContainerChangeInfo) {
 	}
 }
 
-func WatchTmpl(c chan<- ContainerChangeInfo) {
+func WatchTmplFile(c chan<- ContainerChangeInfo) {
 	defer Recover()
 
 	watcher, err := fsnotify.NewWatcher()
@@ -88,7 +96,7 @@ func WatchTmpl(c chan<- ContainerChangeInfo) {
 		glog.Fatalf("initialize fsnotify error: %s", err.Error())
 	}
 
-	err = watcher.Watch("templates/conf.tmpl")
+	err = watcher.Watch("template/conf.gotmpl")
 	if err != nil {
 		glog.Fatalf("watch template error: %s", err.Error())
 	}
@@ -101,7 +109,7 @@ func WatchTmpl(c chan<- ContainerChangeInfo) {
 				if !eventIsModify {
 					c <- ContainerChangeInfo{
 						Info:       nil,
-						ChangeType: NONE,
+						ChangeType: CHANGE,
 					}
 				}
 				eventIsModify = !eventIsModify
@@ -116,7 +124,7 @@ func WatchTmpl(c chan<- ContainerChangeInfo) {
 func CreateConfig(c <-chan ContainerChangeInfo) {
 	defer Recover()
 
-	if err := getEtcdConfig(); err != nil {
+	if err := getTmpl(); err != nil {
 		glog.Fatal(err.Error())
 	}
 	cl := make(map[string]*ContainerInfo)
@@ -129,11 +137,11 @@ func CreateConfig(c <-chan ContainerChangeInfo) {
 					cl[k] = v
 				}
 			} else if ci.ChangeType == RM {
-				for k, _ := range ci.Info {
+				for k := range ci.Info {
 					delete(cl, k)
 				}
 			} else if ci.ChangeType == CHANGE {
-				if err := getEtcdConfig(); err != nil {
+				if err := getTmpl(); err != nil {
 					glog.Fatal(err.Error())
 				}
 			}
@@ -142,27 +150,40 @@ func CreateConfig(c <-chan ContainerChangeInfo) {
 	}
 }
 
-func getEtcdConfig() error {
-	cfg := client.Config{
-		Endpoints: []string{ETCD_POINT},
-		Transport: client.DefaultTransport,
-		// set timeout per request to fail fast when the target endpoint is unavailable
-		HeaderTimeoutPerRequest: time.Second,
+func getTmpl() error {
+	if tmplSource == "etcd" {
+		return getTmplFromETCD()
+	} else if tmplSource == "file" {
+		return getTmplFromFile()
+	} else {
+		return fmt.Errorf("can't resolve the source: %s", tmplSource)
 	}
+}
 
-	ec, err := client.New(cfg)
-	if err != nil {
-		return fmt.Errorf("create etcd client error: %s", err.Error())
-	}
-
-	kapi := client.NewKeysAPI(ec)
+func getTmplFromETCD() error {
 	resp, err := kapi.Get(context.Background(), "wiselogger", nil)
 	if err != nil {
 		return fmt.Errorf("get config error: %s", err.Error())
 	}
 
 	tmpl = resp.Node.Value
+	return nil
+}
 
+func getTmplFromFile() error {
+	filename := "template/conf.gotmpl"
+	file, err := os.Open(filename)
+	if err != nil {
+		return fmt.Errorf("create config file error: %s", err.Error())
+	}
+	defer file.Close()
+
+	fileContent, err := ioutil.ReadAll(file)
+	if err != nil {
+		return fmt.Errorf("read from %s error: %s", filename, err.Error())
+	}
+
+	tmpl = string(fileContent)
 	return nil
 }
 

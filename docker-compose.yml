@@ -1,11 +1,12 @@
 wise-logger:
-    image: ymian/wise-logger
+    image: wise2c/wise-logger
     volumes:
       - /etc/hostname:/etc/hostname
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - "ETCD_POINT=http://172.17.0.3:4001"
       - "DOCKERAPI_VERSION=1.24"
+      - "TMPL_SOURCE=file"
     labels:
       io.rancher.sidekicks: "logstash"
 logstash:

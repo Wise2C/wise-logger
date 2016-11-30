@@ -1,4 +1,5 @@
 {{ range $k, $v := . }}
+input {
     file {
 		path => ["/jsonfile/{{ $v.ID }}/*.log"]
 		codec => plain { charset => "GBK" }
@@ -9,7 +10,7 @@
 		add_field => { "service" => "{{ $v.Service }}" }
 		add_field => { "index" => "{{ $v.Index}}" }
 		add_field => { "HOST" => "{{ $v.Host }}" }
-    }{{ range $v.LogType }}{{ if eq . "UM" }}input {
+    }{{ range $v.LogType }}{{ if eq . "UM" }}
     file {
 		path => ["/logs/{{ $v.MountSource }}/*/common-all*.log"]
 		codec => plain { charset => "GBK" }
