@@ -1,45 +1,51 @@
-{{ range $k, $v := . }}
 input {
     file {
-		path => ["/jsonfile/{{ $v.ID }}/*.log"]
-		codec => plain { charset => "GBK" }
-		discover_interval => 120
-		stat_interval => 2
-		sincedb_path => "/jsonfile/{{ $v.ID }}/sincedb1"
-		add_field => { "stack" => "{{ $v.Stack }}" }
-		add_field => { "service" => "{{ $v.Service }}" }
-		add_field => { "index" => "{{ $v.Index}}" }
-		add_field => { "HOST" => "{{ $v.Host }}" }
-    }{{ range $v.LogType }}{{ if eq . "UM" }}
+        path => ["/host/var/log/*"]
+        codec => plain { charset => "GBK" }
+        discover_interval => 120
+        stat_interval => 2
+        sincedb_path => "/host/var/log/sincedb"
+        exclude => "sincedb"
+    }{{ range $k, $v := . }}
+    {{ range $v.LogType }}{{ if eq . "UM" }}
     file {
-		path => ["/logs/{{ $v.MountSource }}/*/common-all*.log"]
-		codec => plain { charset => "GBK" }
-		discover_interval => 120
-		stat_interval => 2
-		sincedb_path => "/logs/{{ $v.MountSource }}/sincedb1"
-		add_field => { "stack" => "{{ $v.Stack }}" }
-		add_field => { "service" => "{{ $v.Service }}" }
-		add_field => { "index" => "{{ $v.Index}}" }
-		add_field => { "HOST" => "{{ $v.Host }}" }
+        path => ["/logs/{{ $v.MountSource }}/*/common-all*.log"]
+        codec => plain { charset => "GBK" }
+        discover_interval => 120
+        stat_interval => 2
+        sincedb_path => "/logs/{{ $v.MountSource }}/sincedb1"
+        add_field => { "stack" => "{{ $v.Stack }}" }
+        add_field => { "service" => "{{ $v.Service }}" }
+        add_field => { "index" => "{{ $v.Index}}" }
+        add_field => { "HOST" => "{{ $v.Host }}" }
     }
     file {
-		path => "/logs/{{ $v.MountSource }}/*/*.acc"
-		discover_interval => 120
-		stat_interval => 1
-		sincedb_path => "/logs/{{ $v.MountSource }}/sincedb2"
-		add_field => { "stack" => "{{ $v.Stack }}" }
-		add_field => { "service" => "{{ $v.Service }}" }
-		add_field => { "index" => "{{ $v.Index}}" }
-		add_field => { "HOST" => "{{ $v.Host }}" }
-    }
-}{{ end }}{{ end }}{{ end }}
+        path => "/logs/{{ $v.MountSource }}/*/*.acc"
+        discover_interval => 120
+        stat_interval => 1
+        sincedb_path => "/logs/{{ $v.MountSource }}/sincedb2"
+        add_field => { "stack" => "{{ $v.Stack }}" }
+        add_field => { "service" => "{{ $v.Service }}" }
+        add_field => { "index" => "{{ $v.Index}}" }
+        add_field => { "HOST" => "{{ $v.Host }}" }
+    }{{ else if eq . "NONE" }}
+    file {
+        path => ["/jsonfile/{{ $v.ID }}/*.log"]
+        codec => plain { charset => "GBK" }
+        discover_interval => 120
+        stat_interval => 2
+        sincedb_path => "/jsonfile/{{ $v.ID }}/sincedb"
+        add_field => { "stack" => "{{ $v.Stack }}" }
+        add_field => { "service" => "{{ $v.Service }}" }
+        add_field => { "index" => "{{ $v.Index}}" }
+        add_field => { "HOST" => "{{ $v.Host }}" }
+    }{{ end }}{{ end }}{{ end }}
+}
 
 output {
-	stdout { }
-
 	kafka {
-        bootstrap_servers => "kafka_kafka1_1:9092,kafka_kafka2_1:9092,kafka_kafka3_1:9092"
-        topic_id => wise
-        batch_size => 2
+		bootstrap_servers => "kafka_kafka1_1:9092,kafka_kafka2_1:9092,kafka_kafka3_1:9092"
+		topic_id => wise
+		batch_size => 2
     }
 }

@@ -40,7 +40,7 @@ func WatchLogVolume(c chan<- ContainerChangeInfo) {
 		All:    true,
 		Filter: filters.NewArgs(),
 	}
-	options.Filter.Add("label", "logtype")
+	// options.Filter.Add("label", "logtype")
 	containers, err := cli.ContainerList(context.Background(), options)
 	if err != nil {
 		glog.Errorf("get container error: %s", err.Error())
@@ -51,7 +51,8 @@ func WatchLogVolume(c chan<- ContainerChangeInfo) {
 	for _, c := range containers {
 		info, err := getContainerInfo(cli, c.ID)
 		if err != nil {
-			glog.Error(err.Error())
+			glog.Warning(err.Error())
+			continue
 		}
 		cci[c.ID] = info
 		glog.Infof("gather log container %s: %s, %s", c.ID, c.Names, info)
@@ -71,7 +72,7 @@ func watchLogVolume(cli *client.Client, c chan<- ContainerChangeInfo) error {
 	}
 	ops.Filters.Add("type", "container")
 	ops.Filters.Add("event", "create")
-	ops.Filters.Add("label", "logtype")
+	// ops.Filters.Add("label", "logtype")
 
 	reader, err := cli.Events(context.Background(), ops)
 	if err != nil {
@@ -104,14 +105,16 @@ func getContainerInfo(cli *client.Client, containerID string) (*ContainerInfo, e
 		return nil, fmt.Errorf("get container info error: %s", err.Error())
 	}
 
-	t, ok := info.Config.Labels["logtype"]
-	if !ok {
-		panic(fmt.Sprintf("recive a container %s without logtype label", containerID))
+	if info.Name == "/rancher-agent" {
+		return nil, fmt.Errorf("don't manage rancher agent")
 	}
 
 	var source string
-	for _, m := range info.Mounts {
-		if m.Driver == "local" {
+	var lts []string
+	t, ok := info.Config.Labels["logtype"]
+	if ok {
+		lts = strings.Split(t, ";")
+		for _, m := range info.Mounts {
 			p1 := filepath.Dir(m.Source)
 			p1 = filepath.Dir(p1)
 			source, err = filepath.Rel(p1, m.Source)
@@ -119,20 +122,22 @@ func getContainerInfo(cli *client.Client, containerID string) (*ContainerInfo, e
 				return nil, fmt.Errorf("get container volume path error: %s", err.Error())
 			}
 		}
+	} else {
+		lts = []string{"NONE"}
 	}
 
 	containerName := info.Config.Labels["io.rancher.container.name"]
 	var stack, service, index string
 	combination := strings.Split(containerName, "_")
-	if len(combination) == 4 {
+	if len(combination) == 3 || len(combination) == 4 {
 		stack = combination[0]
 		service = combination[1]
-		index = combination[3]
+		index = combination[len(combination)-1]
 	}
 	fmt.Println(stack, service, index)
 
 	return &ContainerInfo{
-		LogType:     strings.Split(t, ";"),
+		LogType:     lts,
 		ID:          info.ID,
 		MountSource: source,
 		Stack:       stack,
