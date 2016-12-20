@@ -11,7 +11,7 @@ import (
 	"io/ioutil"
 
 	"github.com/coreos/etcd/client"
-	"github.com/fsnotify-master"
+	"github.com/fsnotify/fsnotify"
 	"github.com/golang/glog"
 )
 
@@ -96,7 +96,7 @@ func WatchTmplFile(c chan<- ContainerChangeInfo) {
 		glog.Fatalf("initialize fsnotify error: %s", err.Error())
 	}
 
-	err = watcher.Watch("template/conf.gotmpl")
+	err = watcher.Add("template/conf.gotmpl")
 	if err != nil {
 		glog.Fatalf("watch template error: %s", err.Error())
 	}
@@ -104,8 +104,8 @@ func WatchTmplFile(c chan<- ContainerChangeInfo) {
 	eventIsModify := true
 	for {
 		select {
-		case ev := <-watcher.Event:
-			if ev.IsModify() {
+		case ev := <-watcher.Events:
+			if ev.Op&fsnotify.Write == fsnotify.Write {
 				if !eventIsModify {
 					c <- ContainerChangeInfo{
 						Info:       nil,
@@ -115,7 +115,7 @@ func WatchTmplFile(c chan<- ContainerChangeInfo) {
 				eventIsModify = !eventIsModify
 				glog.Infof("template is modified")
 			}
-		case err := <-watcher.Error:
+		case err := <-watcher.Errors:
 			glog.Errorf("error: %s", err.Error())
 		}
 	}

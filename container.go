@@ -55,7 +55,7 @@ func WatchLogVolume(c chan<- ContainerChangeInfo) {
 			continue
 		}
 		cci[c.ID] = info
-		glog.Infof("gather log container %s: %s, %s", c.ID, c.Names, info)
+		glog.Infof("gather log container %s: %s", c.ID, c.Names[0])
 	}
 
 	c <- ContainerChangeInfo{
