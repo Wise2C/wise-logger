@@ -44,7 +44,7 @@ input {
 
 output {
 	kafka {
-		bootstrap_servers => "kafka_kafka1_1:9092,kafka_kafka2_1:9092,kafka_kafka3_1:9092"
+		bootstrap_servers => "@KAFKA_BROKERS@"
 		topic_id => wise
 		batch_size => 2
     }

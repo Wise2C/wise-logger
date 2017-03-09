@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
@@ -11,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/golang/glog"
+	"github.com/hashicorp/consul/api"
 )
 
 var (
@@ -86,4 +88,20 @@ func Recover() {
 		glog.Errorf("panic: %v\n%s", err, buf)
 		glog.Flush()
 	}
+}
+
+func GetKafka() {
+	client, err := api.NewClient(api.DefaultConfig())
+	if err != nil {
+		panic(err)
+	}
+
+	kv := client.KV()
+
+	// Lookup the pair
+	pair, _, err := kv.Get("system/logger/kafkaip", nil)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("KV: %v", pair)
 }

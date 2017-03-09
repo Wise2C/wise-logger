@@ -115,6 +115,10 @@ func getContainerInfo(cli *client.Client, containerID string) (*ContainerInfo, e
 	if ok {
 		lts = strings.Split(t, ";")
 		for _, m := range info.Mounts {
+			if m.Name == "rancher-cni" {
+				continue
+			}
+
 			p1 := filepath.Dir(m.Source)
 			p1 = filepath.Dir(p1)
 			source, err = filepath.Rel(p1, m.Source)
@@ -126,15 +130,19 @@ func getContainerInfo(cli *client.Client, containerID string) (*ContainerInfo, e
 		lts = []string{"NONE"}
 	}
 
-	containerName := info.Config.Labels["io.rancher.container.name"]
 	var stack, service, index string
-	combination := strings.Split(containerName, "_")
-	if len(combination) == 3 || len(combination) == 4 {
+	stackService := info.Config.Labels["io.rancher.stack_service.name"]
+	combination := strings.Split(stackService, "/")
+	if len(combination) == 2 {
 		stack = combination[0]
 		service = combination[1]
+	}
+
+	containerName := info.Config.Labels["io.rancher.container.name"]
+	combination = strings.Split(containerName, "-")
+	if len(combination) != 0 {
 		index = combination[len(combination)-1]
 	}
-	fmt.Println(stack, service, index)
 
 	return &ContainerInfo{
 		LogType:     lts,
