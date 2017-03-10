@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "expvar"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -10,6 +11,7 @@ import (
 	"os/signal"
 	"runtime"
 	"syscall"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/hashicorp/consul/api"
@@ -34,6 +36,8 @@ func main() {
 	initSignal()
 
 	c := make(chan ContainerChangeInfo, 1)
+
+	getKafka(c)
 
 	go CreateConfig(c)
 	go WatchLogVolume(c)
@@ -90,7 +94,7 @@ func Recover() {
 	}
 }
 
-func GetKafka() {
+func getKafka(c chan ContainerChangeInfo) error {
 	client, err := api.NewClient(api.DefaultConfig())
 	if err != nil {
 		panic(err)
@@ -98,10 +102,48 @@ func GetKafka() {
 
 	kv := client.KV()
 
-	// Lookup the pair
 	pair, _, err := kv.Get("system/logger/kafkaip", nil)
 	if err != nil {
-		panic(err)
+		return err
 	}
-	fmt.Printf("KV: %v", pair)
+
+	c <- ContainerChangeInfo{
+		Info: &GlobalInfo{
+			Vars: map[string]string{
+				"kafka": string(pair.Value),
+			},
+		},
+		ChangeType: UPDATE,
+	}
+
+	go GetKafka(kv, pair.ModifyIndex, c)
+
+	return nil
+}
+
+func GetKafka(kv *api.KV, i uint64, c chan ContainerChangeInfo) {
+	for {
+		pair, _, err := kv.Get("system/logger/kafkaip", &api.QueryOptions{
+			WaitIndex: i,
+			WaitTime:  5 * time.Second,
+		})
+
+		if err != nil {
+			fmt.Println("error: ", err.Error())
+		}
+
+		if i == pair.ModifyIndex {
+			continue
+		}
+		i = pair.ModifyIndex
+
+		c <- ContainerChangeInfo{
+			Info: &GlobalInfo{
+				Vars: map[string]string{
+					"kafka": string(pair.Value),
+				},
+			},
+			ChangeType: UPDATE,
+		}
+	}
 }

@@ -6,7 +6,7 @@ input {
         stat_interval => 2
         sincedb_path => "/host/var/log/sincedb"
         exclude => "sincedb"
-    }{{ range $k, $v := . }}
+    }{{ range $k, $v := .Containers }}
     {{ range $v.LogType }}{{ if eq . "UM" }}
     file {
         path => ["/logs/{{ $v.MountSource }}/*/common-all*.log"]
@@ -43,9 +43,9 @@ input {
 }
 
 output {
-	kafka {
-		bootstrap_servers => "@KAFKA_BROKERS@"
-		topic_id => wise
-		batch_size => 2
-    }
+    {{ if eq .Vars.kafka "" }}kafka {
+        bootstrap_servers => "{{ .Vars.kafka }}"
+        topic_id => wise
+        batch_size => 2
+    }{{ else }}stdout { }{{ end }}
 }

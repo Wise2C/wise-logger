@@ -60,7 +60,9 @@ func WatchLogVolume(c chan<- ContainerChangeInfo) {
 
 	c <- ContainerChangeInfo{
 		ChangeType: ADD,
-		Info:       cci,
+		Info: &GlobalInfo{
+			Containers: cci,
+		},
 	}
 
 	glog.Error(watchLogVolume(cli, c))
@@ -93,7 +95,9 @@ func watchLogVolume(cli *client.Client, c chan<- ContainerChangeInfo) error {
 			return err
 		}
 		c <- ContainerChangeInfo{
-			Info:       map[string]*ContainerInfo{event.ID: info},
+			Info: &GlobalInfo{
+				Containers: map[string]*ContainerInfo{event.ID: info},
+			},
 			ChangeType: ADD,
 		}
 	}

@@ -2,13 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"text/template"
 	"time"
 
 	"golang.org/x/net/context"
-
-	"io/ioutil"
 
 	"github.com/coreos/etcd/client"
 	"github.com/fsnotify/fsnotify"
@@ -20,6 +19,7 @@ type ChangeType int
 const (
 	ADD ChangeType = iota
 	RM
+	UPDATE
 	CHANGE
 	NONE
 )
@@ -34,8 +34,13 @@ var (
 	tmpl string
 )
 
+type GlobalInfo struct {
+	Containers map[string]*ContainerInfo
+	Vars       map[string]string
+}
+
 type ContainerChangeInfo struct {
-	Info       map[string]*ContainerInfo
+	Info       *GlobalInfo
 	ChangeType ChangeType
 }
 
@@ -127,25 +132,36 @@ func CreateConfig(c <-chan ContainerChangeInfo) {
 	if err := getTmpl(); err != nil {
 		glog.Fatal(err.Error())
 	}
-	cl := make(map[string]*ContainerInfo)
+
+	gi := &GlobalInfo{
+		Containers: make(map[string]*ContainerInfo),
+		Vars:       make(map[string]string),
+	}
 
 	for {
 		select {
 		case ci := <-c:
 			if ci.ChangeType == ADD {
-				for k, v := range ci.Info {
-					cl[k] = v
+				for k, v := range ci.Info.Containers {
+					gi.Containers[k] = v
 				}
 			} else if ci.ChangeType == RM {
-				for k := range ci.Info {
-					delete(cl, k)
+				for k := range ci.Info.Containers {
+					delete(gi.Containers, k)
+				}
+			} else if ci.ChangeType == UPDATE {
+				for k, v := range ci.Info.Vars {
+					gi.Vars[k] = v
 				}
 			} else if ci.ChangeType == CHANGE {
 				if err := getTmpl(); err != nil {
 					glog.Fatal(err.Error())
 				}
 			}
-			createConfig(cl)
+
+			if len(gi.Containers) != 0 {
+				createConfig(gi)
+			}
 		}
 	}
 }
@@ -187,7 +203,7 @@ func getTmplFromFile() error {
 	return nil
 }
 
-func createConfig(cl map[string]*ContainerInfo) {
+func createConfig(cl *GlobalInfo) {
 	filename := "/tmp/conf.d/logstash.conf"
 	file, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0755)
 	if err != nil {
