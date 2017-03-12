@@ -19,6 +19,10 @@ import (
 
 var (
 	HOST = ""
+
+	consulAddress         = os.Getenv("CONSUL_HTTP_ADDR")
+	outputKafkaBrokerList = flag.String("output-kafka-broker-list", "", "kafka broker list to output")
+	outputKafkaTopic      = flag.String("output-kafka-topic", "wise", "kafka topic where to output")
 )
 
 func init() {
@@ -30,7 +34,8 @@ func init() {
 }
 
 func main() {
-	initGlog()
+	// initGlog()
+	flag.Parse()
 	defer glog.Flush()
 
 	initSignal()
@@ -42,10 +47,10 @@ func main() {
 	go CreateConfig(c)
 	go WatchLogVolume(c)
 
-	if tmplSource == "file" {
-		go WatchTmplFile(c)
-	} else if tmplSource == "etcd" {
+	if tmplSource == "etcd" {
 		go WatchEtcd(c)
+	} else {
+		go WatchTmplFile(c)
 	}
 
 	glog.Info(http.ListenAndServe("0.0.0.0:6060", nil))
@@ -95,28 +100,41 @@ func Recover() {
 }
 
 func getKafka(c chan ContainerChangeInfo) error {
-	client, err := api.NewClient(api.DefaultConfig())
-	if err != nil {
-		panic(err)
-	}
-
-	kv := client.KV()
-
-	pair, _, err := kv.Get("system/logger/kafkaip", nil)
-	if err != nil {
-		return err
-	}
-
-	c <- ContainerChangeInfo{
-		Info: &GlobalInfo{
-			Vars: map[string]string{
-				"kafka": string(pair.Value),
+	if *outputKafkaBrokerList != "" {
+		c <- ContainerChangeInfo{
+			Info: &GlobalInfo{
+				Vars: map[string]string{
+					"kafkaBrokerList": *outputKafkaBrokerList,
+					"kafkaTopic":      *outputKafkaTopic,
+				},
 			},
-		},
-		ChangeType: UPDATE,
-	}
+			ChangeType: UPDATE,
+		}
+	} else if consulAddress != "" {
+		client, err := api.NewClient(api.DefaultConfig())
+		if err != nil {
+			panic(err)
+		}
 
-	go GetKafka(kv, pair.ModifyIndex, c)
+		kv := client.KV()
+
+		pair, _, err := kv.Get("system/logger/kafkaip", nil)
+		if err != nil {
+			return err
+		}
+
+		c <- ContainerChangeInfo{
+			Info: &GlobalInfo{
+				Vars: map[string]string{
+					"kafkaBrokerList": string(pair.Value),
+					"kafkaTopic":      "wise",
+				},
+			},
+			ChangeType: UPDATE,
+		}
+
+		go GetKafka(kv, pair.ModifyIndex, c)
+	}
 
 	return nil
 }
@@ -140,7 +158,8 @@ func GetKafka(kv *api.KV, i uint64, c chan ContainerChangeInfo) {
 		c <- ContainerChangeInfo{
 			Info: &GlobalInfo{
 				Vars: map[string]string{
-					"kafka": string(pair.Value),
+					"kafkaBrokerList": string(pair.Value),
+					"kafkaTopic":      "wise",
 				},
 			},
 			ChangeType: UPDATE,

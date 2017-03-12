@@ -43,9 +43,9 @@ input {
 }
 
 output {
-    {{ if eq .Vars.kafka "" }}kafka {
-        bootstrap_servers => "{{ .Vars.kafka }}"
-        topic_id => wise
+    {{ if ne .Vars.kafkaBrokerList "" }}kafka {
+        bootstrap_servers => "{{ .Vars.kafkaBrokerList }}"
+        topic_id => {{ .Vars.kafkaTopic }}
         batch_size => 2
     }{{ else }}stdout { }{{ end }}
 }

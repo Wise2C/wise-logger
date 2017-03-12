@@ -169,10 +169,8 @@ func CreateConfig(c <-chan ContainerChangeInfo) {
 func getTmpl() error {
 	if tmplSource == "etcd" {
 		return getTmplFromETCD()
-	} else if tmplSource == "file" {
-		return getTmplFromFile()
 	} else {
-		return fmt.Errorf("can't resolve the source: %s", tmplSource)
+		return getTmplFromFile()
 	}
 }
 
