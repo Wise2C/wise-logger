@@ -135,7 +135,9 @@ func CreateConfig(c <-chan ContainerChangeInfo) {
 
 	gi := &GlobalInfo{
 		Containers: make(map[string]*ContainerInfo),
-		Vars:       make(map[string]string),
+		Vars: map[string]string{
+			"kafkaBrokerList": "",
+		},
 	}
 
 	for {
